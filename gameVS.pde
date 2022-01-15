@@ -2,14 +2,16 @@ import net.java.games.input.*;
 import org.gamecontrolplus.*;
 import org.gamecontrolplus.gui.*;
 
-/** TODO
- *  Version 4:
- *    Damage Number Graphic
- *    Current Weapon Text
- *    Swap Weapon Menu
+/** Version 4 Changes:    Graphics Update
+ *    Added Damage Taken Graphic
+ *    Added Current Weapon Text
+ *    Added Change Weapon Menu
+ *      Bring up with Left Button, set fastWeaponSwap to true to bring up on boot
+ *    Added Weapon Guide Table
+ *    Added Option to Increase armor weight, and added it to Weapon menu
 **/
 
-/** Version 3 Changes:
+/** Version 3 Changes:    Complete Update
  *    Added Shields
  *    Implemented Window Scaling with scaleFactor variable
  *    Added staff, a weapon for those without weapon proficiency
@@ -18,7 +20,7 @@ import org.gamecontrolplus.gui.*;
  *    Debugging
 **/
 
-/** Version 2 Changes:
+/** Version 2 Changes:    Variety Update
  *    Keyboard Control added with keyboardInstead variable
  *    Added support for charge
  *      revolver, rapier, bow
@@ -29,6 +31,8 @@ import org.gamecontrolplus.gui.*;
 
 boolean keyboardInstead = true;
 float scaleFactor =  1.2;
+int damageDecayTime = 200;
+boolean fastWeaponSwap = false;
 
 void settings() {
   //System.setProperty("jogl.disable.openglcore", "false");
@@ -38,6 +42,7 @@ void settings() {
 }
 
 class Weapon {
+  public String name;
   public Attack lightAttack;
   public Attack heavyAttack;
   public Attack lightDefend;
@@ -72,6 +77,7 @@ class Weapon {
     shieldCharge = 0;
     fakeShieldCharge = 0;
     attackNow = false;
+    name = "nameless";
   }
   public Attack doAttack(int attackNumber, boolean isFeint) {
     if(duration != 0 && !this.isFeint) {
@@ -356,6 +362,19 @@ class Player {
     mainWeapon.isDualWield = true;
     secondWeapon.isDualWield = true;
   }
+  public void increaseArmorWeight() {
+    defence++;
+    mainWeapon.lightAttack.duration++;
+    mainWeapon.heavyAttack.duration++;
+    mainWeapon.lightDefend.duration++;
+    mainWeapon.heavyDefend.duration++;
+    if(isDualWielding) {
+      secondWeapon.lightAttack.duration++;
+      secondWeapon.heavyAttack.duration++;
+      secondWeapon.lightDefend.duration++;
+      secondWeapon.heavyDefend.duration++;
+    }
+  }
 }
 class Controller {
   ControlDevice device;
@@ -464,9 +483,16 @@ int P1Move2;
 int P2Move;
 int P2Move2;
 
+int videoMode;
+
 boolean checkSecondMove;
 
 int waitVal;
+
+int P1DamageTaken;
+int P2DamageTaken;
+int P1DamageTime;
+int P2DamageTime;
 
 
 
@@ -489,49 +515,63 @@ public Weapon sword() {    // 1 Handed Medium Weapons
   Attack heavyAttack = new Attack(3,3,0,false);
   Attack lightDefend = new Attack(-2,2,0,false);
   Attack heavyDefend = new Attack(-3,3,0,false);
-  return new Weapon(lightAttack,heavyAttack,lightDefend,heavyDefend);
+  Weapon retVal = new Weapon(lightAttack,heavyAttack,lightDefend,heavyDefend);
+  retVal.name = "Sword";
+  return retVal;
 }
 public Weapon revolver() {    // 1 Handed Ranged Weapons
   Attack lightAttack = new Attack(0,1,1,false);
   Attack heavyAttack = new Attack(2,1,-1,false);
   Attack lightDefend = new Attack(-1,1,0,false);
   Attack heavyDefend = new Attack(-2,1,-1,false);
-  return new Weapon(lightAttack,heavyAttack,lightDefend,heavyDefend);
+  Weapon retVal = new Weapon(lightAttack,heavyAttack,lightDefend,heavyDefend);
+  retVal.name = "Revolver";
+  return retVal;
 }
 public Weapon rapier() {    // 1 Handed Light Weapons
   Attack lightAttack = new Attack(1,2,1,false);
   Attack heavyAttack = new Attack(3,2,-1,false);
   Attack lightDefend = new Attack(-1,2,1,false);
   Attack heavyDefend = new Attack(-3,2,-1,false);
-  return new Weapon(lightAttack,heavyAttack,lightDefend,heavyDefend);
+  Weapon retVal = new Weapon(lightAttack,heavyAttack,lightDefend,heavyDefend);
+  retVal.name = "Rapier";
+  return retVal;
 }
 public Weapon dagger() {    // 1 Handed Small Weapons
   Attack lightAttack = new Attack(1,1,1,false);
   Attack heavyAttack = new Attack(1,2,0,true);
   Attack lightDefend = new Attack(-1,1,0,false);
   Attack heavyDefend = new Attack(-2,2,0,false);
-  return new Weapon(lightAttack,heavyAttack,lightDefend,heavyDefend);
+  Weapon retVal = new Weapon(lightAttack,heavyAttack,lightDefend,heavyDefend);
+  retVal.name = "Dagger";
+  return retVal;
 }
 public Weapon ax() {    // 2 Handed Weapons
   Attack lightAttack = new Attack(3,3,1,false);
   Attack heavyAttack = new Attack(2,3,0,true);
   Attack lightDefend = new Attack(-3,3,0,false);
   Attack heavyDefend = new Attack(-3,3,0,true);
-  return new Weapon(lightAttack,heavyAttack,lightDefend,heavyDefend);
+  Weapon retVal = new Weapon(lightAttack,heavyAttack,lightDefend,heavyDefend);
+  retVal.name = "Ax";
+  return retVal;
 }
 public Weapon bow() {    // 2 Handed Ranged Weapons
   Attack lightAttack = new Attack(0,2,1,false);
   Attack heavyAttack = new Attack(4,3,-1,false);
   Attack lightDefend = new Attack(-2,1,0,false);
   Attack heavyDefend = new Attack(-4,3,-1,false);
-  return new Weapon(lightAttack,heavyAttack,lightDefend,heavyDefend);
+  Weapon retVal = new Weapon(lightAttack,heavyAttack,lightDefend,heavyDefend);
+  retVal.name = "Bow";
+  return retVal;
 }
 public Weapon staff() {    // Low-Skill Weapons / Proficient->Unarmed  //Note: auto-proficient at Low-Skill weapons
   Attack lightAttack = new Attack(1,2,2,false);
   Attack heavyAttack = new Attack(2,2,1,false);
   Attack lightDefend = new Attack(-2,3,0,false);
   Attack heavyDefend = new Attack(-2,2,-2,false);
-  return new Weapon(lightAttack,heavyAttack,lightDefend,heavyDefend);
+  Weapon retVal = new Weapon(lightAttack,heavyAttack,lightDefend,heavyDefend);
+  retVal.name = "Staff";
+  return retVal;
 }
 
 void setup() {
@@ -541,46 +581,747 @@ void setup() {
   surface.setTitle("Game VS");
   surface.setResizable(false);
   frameRate(60);
+  videoMode = 0;
+  if(fastWeaponSwap) videoMode = 1;
+  P1menuNum = 0;
+  P1itemNum = 0;
+  P1choose1 = 0;
+  P1choose2 = 7;
+  P1choose3 = 1;
+  P1choose4 = 1;
+    
+  P2menuNum = 0;
+  P2itemNum = 0;
+  P2choose1 = 0;
+  P2choose2 = 7;
+  P2choose3 = 1;
+  P2choose4 = 1;
   rebuildGame();
 }
 
 void rebuildGame() {
   waitVal = 60;
-  P1 = new Player(1, dagger());
-  P2 = new Player(1, dagger());
-  P1.addSecondary(dagger());
-  P2.addSecondary(dagger());
-  //P2.addShield();
+    
+  P1DamageTaken = 0;
+  P2DamageTaken = 0;
+  P1DamageTime = 0;
+  P2DamageTime = 0;
+  
   P1Move = 0;
   P2Move = 0;
   P1Move2 = 0;
   P2Move2 = 0;
   checkSecondMove = false;
+  
+  
+  if(videoMode == 0) {
+    
+  } else if(videoMode == 1) {
+    P1menuNum = 0;
+    P1itemNum = 0;
+    P1choose1 = -1;
+    P1choose2 = -1;
+    P1choose3 = -1;
+    P1choose4 = -1;
+    
+    P2menuNum = 0;
+    P2itemNum = 0;
+    P2choose1 = -1;
+    P2choose2 = -1;
+    P2choose3 = -1;
+    P2choose4 = -1;
+  }
+  menuPlayers();
 }
 
+void menuPlayers() {
+  
+      switch(P1choose1) {
+        case 0:
+          P1 = new Player(1, sword());
+          break;
+        case 1:
+          P1 = new Player(1, revolver());
+          break;
+        case 2:
+          P1 = new Player(1, rapier());
+          break;
+        case 3:
+          P1 = new Player(1, dagger());
+          break;
+        case 4:
+          P1 = new Player(1, ax());
+          break;
+        case 5:
+          P1 = new Player(1, bow());
+          break;
+        case 6:
+          P1 = new Player(1, staff());
+          break;
+      }
+      
+      //text("Secondary:", 30+xOff, 215+yOff);
+      switch(P1choose2) {
+        case 0:
+          P1.addSecondary(sword());
+          break;
+        case 1:
+          P1.addSecondary(revolver());
+          break;
+        case 2:
+          P1.addSecondary(rapier());
+          break;
+        case 3:
+          P1.addSecondary(dagger());
+          break;
+        case 4:
+          P1.addSecondary(ax());
+          break;
+        case 5:
+          P1.addSecondary(bow());
+          break;
+        case 6:
+          P1.addSecondary(staff());
+          break;
+        case 7:
+          break;
+      }
+      //text("Shield:", 30+xOff, 425+yOff);
+      switch(P1choose3) {
+        case 0:
+          P1.addShield();
+          break;
+        case 1:
+          break;
+      }
+      switch(P1choose4) {
+        case 0:
+          P1.increaseArmorWeight();
+          break;
+        case 1:
+          break;
+      }
+      switch(P2choose1) {
+        case 0:
+          P2 = new Player(1, sword());
+          break;
+        case 1:
+          P2 = new Player(1, revolver());
+          break;
+        case 2:
+          P2 = new Player(1, rapier());
+          break;
+        case 3:
+          P2 = new Player(1, dagger());
+          break;
+        case 4:
+          P2 = new Player(1, ax());
+          break;
+        case 5:
+          P2 = new Player(1, bow());
+          break;
+        case 6:
+          P2 = new Player(1, staff());
+          break;
+      }
+      
+      //text("Secondary:", 30+xOff, 215+yOff);
+      switch(P2choose2) {
+        case 0:
+          P2.addSecondary(sword());
+          break;
+        case 1:
+          P2.addSecondary(revolver());
+          break;
+        case 2:
+          P2.addSecondary(rapier());
+          break;
+        case 3:
+          P2.addSecondary(dagger());
+          break;
+        case 4:
+          P2.addSecondary(ax());
+          break;
+        case 5:
+          P2.addSecondary(bow());
+          break;
+        case 6:
+          P2.addSecondary(staff());
+          break;
+        case 7:
+          break;
+      }
+      //text("Shield:", 30+xOff, 425+yOff);
+      switch(P2choose3) {
+        case 0:
+          P2.addShield();
+          break;
+        case 1:
+          break;
+      }
+      switch(P2choose4) {
+        case 0:
+          P2.increaseArmorWeight();
+          break;
+        case 1:
+          break;
+      }
+}
+
+
 void draw() {
-  //float scaleFactor = min(1.0*width/640, 1.0*height/480);
   scale(scaleFactor);
-  background(#5ae6f2);
   P1Controller.doTick();
   P2Controller.doTick();
-//  waitVal--;
-//  if(waitVal < 0) {
-//    waitVal = 0;
-//  }  
-  drawGround();
-  drawUI();
-  drawControls();
-  //drawCharacters();
-  if(winCheck()) {
-    if((P1Controller.RB.pressed() || P2Controller.RB.pressed())) {
-      rebuildGame();
-    }
-  } else {
-    inputHandler();
+  switch(videoMode) {
+    case 0:
+      background(#5ae6f2);
+      
+    //  waitVal--;
+    //  if(waitVal < 0) {
+    //    waitVal = 0;
+    //  }  
+      drawGround();
+      drawUI();
+      
+      //drawCharacters();
+      if(winCheck()) {
+        if((P1Controller.Left.pressed() || P2Controller.Left.pressed())) {
+          videoMode = 1;
+          rebuildGame();
+        }
+        if((P1Controller.RB.pressed() || P2Controller.RB.pressed())) {
+          rebuildGame();
+        }
+      } else {
+        inputHandler();
+      }
+      drawDamage();
+      float helpTableScale = 0.4;
+      if(checkSecondMove) {
+        if(P1.isDualWielding) {
+          drawWeaponDescriptor(P1.secondWeapon, 0, (int)(480-130*helpTableScale), helpTableScale);
+        }
+        if(P2.isDualWielding) {
+          drawWeaponDescriptor(P2.secondWeapon, (int)(640-610*helpTableScale), (int)(480-130*helpTableScale), helpTableScale);
+        }
+      } else {
+        drawWeaponDescriptor(P1.mainWeapon, 0, (int)(480-130*helpTableScale), helpTableScale);
+        drawWeaponDescriptor(P2.mainWeapon, (int)(640-610*helpTableScale), (int)(480-130*helpTableScale), helpTableScale);
+      }
+      drawControls();
+      break;
+    case 1:
+      drawWeaponMenu();
+      break;
   }
   
 }
+
+void drawWeaponDescriptor(Weapon thisWeapon, int xOff, int yOff, float scale) {
+  fill(255);
+  stroke(0);
+  textSize(20*scale);
+  rect(xOff,yOff,610*scale,130*scale);
+  fill(0);
+  text("Light Attack", 10*scale+xOff, 50*scale+yOff);
+  text("Heavy Attack", 10*scale+xOff, 75*scale+yOff);
+  text("Light Defend", 10*scale+xOff, 100*scale+yOff);
+  text("Heavy Defend", 10*scale+xOff, 125*scale+yOff);
+  
+  text("Damage", 160*scale+xOff, 25*scale+yOff);
+  String damagePrinter;
+  
+  damagePrinter = "";
+  if(thisWeapon.isDualWield) damagePrinter += "2/3*(";
+  damagePrinter+=thisWeapon.lightAttack.damage;
+  if(thisWeapon.lightAttack.absorbCharge && thisWeapon.lightAttack.damage>=0) damagePrinter += "+N";
+  if(thisWeapon.lightAttack.absorbCharge && thisWeapon.lightAttack.damage<0) damagePrinter += "-N";
+  if(thisWeapon.isDualWield) damagePrinter += ")";
+  text(damagePrinter, 160*scale+xOff, 50*scale+yOff);
+  
+  damagePrinter = "";
+  if(thisWeapon.isDualWield) damagePrinter += "2/3*(";
+  damagePrinter+=thisWeapon.heavyAttack.damage;
+  if(thisWeapon.heavyAttack.absorbCharge && thisWeapon.heavyAttack.damage>=0) damagePrinter += "+N";
+  if(thisWeapon.heavyAttack.absorbCharge && thisWeapon.heavyAttack.damage<0) damagePrinter += "-N";
+  if(thisWeapon.isDualWield) damagePrinter += ")";
+  text(damagePrinter, 160*scale+xOff, 75*scale+yOff);
+  
+  damagePrinter = "";
+  if(thisWeapon.isDualWield) damagePrinter += "2/3*(";
+  damagePrinter+=thisWeapon.lightDefend.damage;
+  if(thisWeapon.lightDefend.absorbCharge && thisWeapon.lightDefend.damage>=0) damagePrinter += "+N";
+  if(thisWeapon.lightDefend.absorbCharge && thisWeapon.lightDefend.damage<0) damagePrinter += "-N";
+  if(thisWeapon.isDualWield) damagePrinter += ")";
+  text(damagePrinter, 160*scale+xOff, 100*scale+yOff);
+  
+  damagePrinter = "";
+  if(thisWeapon.isDualWield) damagePrinter += "2/3*(";
+  damagePrinter+=thisWeapon.heavyDefend.damage;
+  if(thisWeapon.heavyDefend.absorbCharge && thisWeapon.heavyDefend.damage>=0) damagePrinter += "+N";
+  if(thisWeapon.heavyDefend.absorbCharge && thisWeapon.heavyDefend.damage<0) damagePrinter += "-N";
+  if(thisWeapon.isDualWield) damagePrinter += ")";
+  text(damagePrinter, 160*scale+xOff, 125*scale+yOff);
+  
+  
+  text("Duration", 275*scale+xOff, 25*scale+yOff);
+  
+  text(thisWeapon.lightAttack.duration, 275*scale+xOff, 50*scale+yOff);
+  text(thisWeapon.heavyAttack.duration, 275*scale+xOff, 75*scale+yOff);
+  text(thisWeapon.lightDefend.duration, 275*scale+xOff, 100*scale+yOff);
+  text(thisWeapon.heavyDefend.duration, 275*scale+xOff, 125*scale+yOff);
+  
+  
+  text("Charge", 375*scale+xOff, 25*scale+yOff);
+  
+  if(thisWeapon.lightAttack.absorbCharge) {
+    text(thisWeapon.lightAttack.charge + "-N", 375*scale+xOff, 50*scale+yOff);
+  } else {
+      text(thisWeapon.lightAttack.charge, 375*scale+xOff, 50*scale+yOff);
+  }
+  if(thisWeapon.heavyAttack.absorbCharge) {
+    text(thisWeapon.heavyAttack.charge + "-N", 375*scale+xOff, 75*scale+yOff);
+  } else {
+    text(thisWeapon.heavyAttack.charge, 375*scale+xOff, 75*scale+yOff);
+  }
+  if(thisWeapon.lightDefend.absorbCharge) {
+    text(thisWeapon.lightDefend.charge + "-N", 375*scale+xOff, 100*scale+yOff);
+  } else {
+    text(thisWeapon.lightDefend.charge, 375*scale+xOff, 100*scale+yOff);
+  }
+  if(thisWeapon.heavyDefend.absorbCharge) {
+    text(thisWeapon.heavyDefend.charge + "-N", 375*scale+xOff, 125*scale+yOff);
+  } else {
+    text(thisWeapon.heavyDefend.charge, 375*scale+xOff, 125*scale+yOff);
+  }
+  
+  
+  text("Shield Charge", 465*scale+xOff, 25*scale+yOff);
+  
+  text(thisWeapon.lightAttack.shieldCharge, 465*scale+xOff, 50*scale+yOff);
+  text(thisWeapon.heavyAttack.shieldCharge, 465*scale+xOff, 75*scale+yOff);
+  text(thisWeapon.lightDefend.shieldCharge, 465*scale+xOff, 100*scale+yOff);
+  text(thisWeapon.heavyDefend.shieldCharge, 465*scale+xOff, 125*scale+yOff);
+  
+  
+  line(155*scale+xOff,yOff,155*scale+xOff,130*scale+yOff);
+  line(270*scale+xOff,yOff,270*scale+xOff,130*scale+yOff);
+  line(370*scale+xOff,yOff,370*scale+xOff,130*scale+yOff);
+  line(460*scale+xOff,yOff,460*scale+xOff,130*scale+yOff);
+  
+  line(xOff,30*scale+yOff,610*scale+xOff,30*scale+yOff);
+  line(xOff,55*scale+yOff,610*scale+xOff,55*scale+yOff);
+  line(xOff,80*scale+yOff,610*scale+xOff,80*scale+yOff);
+  line(xOff,105*scale+yOff,610*scale+xOff,105*scale+yOff);
+  
+  
+}
+
+void drawWeaponMenu() {
+  background(#0000ff);
+  fill(255);
+  line(320, 0, 320, 480);
+  drawPlayerMenu(0, 0, 0);
+  drawPlayerMenu(1, 320, 0);
+  doMenuMoves();
+  if(P1menuNum == 4 && P2menuNum == 4) {
+    videoMode = 0;
+    rebuildGame();
+  }
+}
+void doMenuMoves() {
+  int move, localMax;
+  move = Cinput(P1Controller);
+  switch(move) {
+    case 1:
+      P1itemNum++;
+      break;
+    case 2:
+      switch(P1menuNum) {
+        case 0:
+          P1choose1 = P1itemNum;
+          break;
+        case 1:
+          P1choose2 = P1itemNum;
+          break;
+        case 2:
+          P1choose3 = P1itemNum;
+          break;
+        case 3:
+          P1choose4 = P1itemNum;
+          break;
+        default:
+          P1itemNum = 0;
+          P1menuNum--;
+          break;
+      }
+      P1itemNum = 0;
+      P1menuNum++;
+      break;
+    case 3:
+      switch(P1menuNum) {
+        case 1:
+          P1itemNum = P1choose1;
+          P1choose1 = -1;
+          break;
+        case 2:
+          P1itemNum = P1choose2;
+          P1choose2 = -1;
+          break;
+        case 3:
+          P1itemNum = P1choose3;
+          P1choose3 = -1;
+          break;
+        case 4:
+          P1itemNum = P1choose4;
+          P1choose4 = -1;
+          break;
+        default:
+          P1menuNum++;
+          break;
+      }
+      P1menuNum--;
+      break;
+    case 4:
+      P1itemNum--;
+  }
+  switch(P1menuNum) {
+    case 0:
+      localMax = 6;
+      break;
+    case 1:
+      localMax = 7;
+      break;
+    case 2:
+      localMax = 1;
+      break;
+    case 3:
+      localMax = 1;
+      break;
+    default:
+      localMax = 0;
+      break;
+  }
+  if(P1itemNum > localMax) {
+    P1itemNum = 0;
+  } else if(P1itemNum < 0) {
+    P1itemNum = localMax;
+  }
+  
+  
+  
+  move = Cinput(P2Controller);
+  switch(move) {
+    case 1:
+      P2itemNum++;
+      break;
+    case 2:
+      switch(P2menuNum) {
+        case 0:
+          P2choose1 = P2itemNum;
+          break;
+        case 1:
+          P2choose2 = P2itemNum;
+          break;
+        case 2:
+          P2choose3 = P2itemNum;
+          break;
+        case 3:
+          P2choose4 = P2itemNum;
+          break;
+        default:
+          P2itemNum = 0;
+          P2menuNum--;
+          break;
+      }
+      P2itemNum = 0;
+      P2menuNum++;
+      break;
+    case 3:
+      switch(P2menuNum) {
+        case 1:
+          P2itemNum = P2choose1;
+          P2choose1 = -1;
+          break;
+        case 2:
+          P2itemNum = P2choose2;
+          P2choose2 = -1;
+          break;
+        case 3:
+          P2itemNum = P2choose3;
+          P2choose3 = -1;
+          break;
+        case 4:
+          P2itemNum = P2choose4;
+          P2choose4 = -1;
+          break;
+        default:
+          P2menuNum++;
+          break;
+      }
+      P2menuNum--;
+      break;
+    case 4:
+      P2itemNum--;
+  }
+  switch(P2menuNum) {
+    case 0:
+      localMax = 6;
+      break;
+    case 1:
+      localMax = 7;
+      break;
+    case 2:
+      localMax = 1;
+      break;
+    case 3:
+      localMax = 1;
+      break;
+    default:
+      localMax = 0;
+      break;
+  }
+  if(P2itemNum > localMax) {
+    P2itemNum = 0;
+  } else if(P2itemNum < 0) {
+    P2itemNum = localMax;
+  }
+  
+}
+
+void drawPlayerMenu(int playerNumber, int xOff, int yOff) {
+  textSize(20);
+  fill(255);
+  text("Primary:", 30+xOff, 25+yOff);
+  text("Sword", 50+xOff, 50+yOff);
+  text("Revolver", 50+xOff, 70+yOff);
+  text("Rapier", 50+xOff, 90+yOff);
+  text("Dagger", 50+xOff, 110+yOff);
+  text("Ax", 50+xOff, 130+yOff);
+  text("Bow", 50+xOff, 150+yOff);
+  text("Staff", 50+xOff, 170+yOff);
+  
+  text("Secondary:", 30+xOff, 215+yOff);
+  text("Sword", 50+xOff, 240+yOff);
+  text("Revolver", 50+xOff, 260+yOff);
+  text("Rapier", 50+xOff, 280+yOff);
+  text("Dagger", 50+xOff, 300+yOff);
+  text("Ax", 50+xOff, 320+yOff);
+  text("Bow", 50+xOff, 340+yOff);
+  text("Staff", 50+xOff, 360+yOff);
+  text("Nothing", 50+xOff, 380+yOff);
+  
+  text("Shield:", 30+xOff, 425+yOff);
+  text("Yes", 50+xOff, 450+yOff);
+  text("No", 50+xOff, 470+yOff);
+  
+  text("Armor:", 230+xOff, 425+yOff);
+  text("Heavy", 250+xOff, 450+yOff);
+  text("Light", 250+xOff, 470+yOff);
+  
+  int triangleY;
+  int triangleX;
+  noStroke();
+  switch(playerNumber) {
+    case 0:
+      switch(P1menuNum) {
+        case 0:
+          triangleX = 0;
+          triangleY = 50;
+          break;
+        case 1:
+          triangleX = 0;
+          triangleY = 240;
+          break;
+        case 2:
+          triangleX = 0;
+          triangleY = 450;
+          break;
+        case 3:
+          triangleX = 200;
+          triangleY = 450;
+          break;
+        default:
+          triangleX = -40;
+          triangleY = -40;
+          break;
+      }
+      triangleY += 20 * P1itemNum - 16;
+      
+      triangle(triangleX+25+xOff,triangleY+yOff,triangleX+40+xOff,triangleY+9+yOff,triangleX+25+xOff,triangleY+18+yOff);
+      //text("Primary:", 30+xOff, 25+yOff);
+      switch(P1choose1) {
+        case 0:
+          text("Sword", 180+xOff, 25+yOff);
+          break;
+        case 1:
+          text("Revolver", 180+xOff, 25+yOff);
+          break;
+        case 2:
+          text("Rapier", 180+xOff, 25+yOff);
+          break;
+        case 3:
+          text("Dagger", 180+xOff, 25+yOff);
+          break;
+        case 4:
+          text("Ax", 180+xOff, 25+yOff);
+          break;
+        case 5:
+          text("Bow", 180+xOff, 25+yOff);
+          break;
+        case 6:
+          text("Staff", 180+xOff, 25+yOff);
+          break;
+      }
+      
+      //text("Secondary:", 30+xOff, 215+yOff);
+      switch(P1choose2) {
+        case 0:
+          text("Sword", 180+xOff, 50+yOff);
+          break;
+        case 1:
+          text("Revolver", 180+xOff, 50+yOff);
+          break;
+        case 2:
+          text("Rapier", 180+xOff, 50+yOff);
+          break;
+        case 3:
+          text("Dagger", 180+xOff, 50+yOff);
+          break;
+        case 4:
+          text("Ax", 180+xOff, 50+yOff);
+          break;
+        case 5:
+          text("Bow", 180+xOff, 50+yOff);
+          break;
+        case 6:
+          text("Staff", 180+xOff, 50+yOff);
+          break;
+        case 7:
+          text("Nothing", 180+xOff, 50+yOff);
+          break;
+      }
+      //text("Shield:", 30+xOff, 425+yOff);
+      switch(P1choose3) {
+        case 0:
+          text("With Shield", 180+xOff, 75+yOff);
+          break;
+        case 1:
+          text("No Shield", 180+xOff, 75+yOff);
+          break;
+      }
+      switch(P1choose4) {
+        case 0:
+          text("Heavy Armor", 180+xOff, 100+yOff);
+          break;
+        case 1:
+          text("Light Armor", 180+xOff, 100+yOff);
+          break;
+      }
+      break;
+    case 1:
+      switch(P2menuNum) {
+        case 0:
+          triangleX = 0;
+          triangleY = 50;
+          break;
+        case 1:
+          triangleX = 0;
+          triangleY = 240;
+          break;
+        case 2:
+          triangleX = 0;
+          triangleY = 450;
+          break;
+        case 3:
+          triangleX = 200;
+          triangleY = 450;
+          break;
+        default:
+          triangleX = -40;
+          triangleY = -40;
+          break;
+      }
+      triangleY += 20 * P2itemNum - 16;
+      
+      triangle(triangleX+25+xOff,triangleY+yOff,triangleX+40+xOff,triangleY+9+yOff,triangleX+25+xOff,triangleY+18+yOff);
+      //text("Primary:", 30+xOff, 25+yOff);
+      switch(P2choose1) {
+        case 0:
+          text("Sword", 180+xOff, 25+yOff);
+          break;
+        case 1:
+          text("Revolver", 180+xOff, 25+yOff);
+          break;
+        case 2:
+          text("Rapier", 180+xOff, 25+yOff);
+          break;
+        case 3:
+          text("Dagger", 180+xOff, 25+yOff);
+          break;
+        case 4:
+          text("Ax", 180+xOff, 25+yOff);
+          break;
+        case 5:
+          text("Bow", 180+xOff, 25+yOff);
+          break;
+        case 6:
+          text("Staff", 180+xOff, 25+yOff);
+          break;
+      }
+      
+      //text("Secondary:", 30+xOff, 215+yOff);
+      switch(P2choose2) {
+        case 0:
+          text("Sword", 180+xOff, 50+yOff);
+          break;
+        case 1:
+          text("Revolver", 180+xOff, 50+yOff);
+          break;
+        case 2:
+          text("Rapier", 180+xOff, 50+yOff);
+          break;
+        case 3:
+          text("Dagger", 180+xOff, 50+yOff);
+          break;
+        case 4:
+          text("Ax", 180+xOff, 50+yOff);
+          break;
+        case 5:
+          text("Bow", 180+xOff, 50+yOff);
+          break;
+        case 6:
+          text("Staff", 180+xOff, 50+yOff);
+          break;
+        case 7:
+          text("Nothing", 180+xOff, 50+yOff);
+          break;
+      }
+      //text("Shield:", 30+xOff, 425+yOff);
+      switch(P2choose3) {
+        case 0:
+          text("With Shield", 180+xOff, 75+yOff);
+          break;
+        case 1:
+          text("No Shield", 180+xOff, 75+yOff);
+          break;
+      }
+      switch(P2choose4) {
+        case 0:
+          text("Heavy Armor", 180+xOff, 100+yOff);
+          break;
+        case 1:
+          text("Light Armor", 180+xOff, 100+yOff);
+          break;
+      }
+      break;
+  }
+  
+}
+int P1menuNum, P1itemNum, P1choose1, P1choose2, P1choose3, P1choose4;
+int P2menuNum, P2itemNum, P2choose1, P2choose2, P2choose3, P2choose4;
+
 
 void inputHandler() {
 
@@ -645,10 +1386,14 @@ void inputHandler() {
     }
     boolean P1Attack = P1.doTick();
     boolean P2Attack = P2.doTick();
+    P1DamageTaken = 0;
+    P2DamageTaken = 0;
     if(P1Attack) {
+      P2DamageTaken = P1.getDamage();
       P2.handleDamage(P1.getDamage());
     }
     if(P2Attack) {
+      P1DamageTaken = P2.getDamage();
       P1.handleDamage(P2.getDamage());
     }
     P1.earlyTick();
@@ -658,6 +1403,8 @@ void inputHandler() {
     P2Move = 0;
     P1Move2 = 0;
     P2Move2 = 0;
+    P1DamageTime = damageDecayTime;
+    P2DamageTime = damageDecayTime;
     checkSecondMove = false;
   }
 }
@@ -746,6 +1493,23 @@ void drawUI() {
   textSize(20);
   text("Player 1", 10, 20);
   text("Player 2", 320 + 10, 20);
+  
+  if(P1.isDualWielding) {
+    text(P1.mainWeapon.name + " + " + P1.secondWeapon.name, 125, 20);
+  } else if(P1.mainWeapon.isWithShield) {
+    text(P1.mainWeapon.name + " + " + "Shield", 125, 20);
+  } else {
+    text(P1.mainWeapon.name, 125, 20);
+  }
+  
+  if(P1.isDualWielding) {
+    text(P2.mainWeapon.name + " + " + P2.secondWeapon.name, 125+320, 20);
+  } else if(P2.mainWeapon.isWithShield) {
+    text(P2.mainWeapon.name + " + " + "Shield", 125+320, 20);
+  } else {
+    text(P2.mainWeapon.name, 125+320, 20);
+  }
+  
   text("Health: ", 20, 50);
   text("Health: ", 320 + 20, 50);
   text(""+P1.health, 94, 50); 
@@ -789,6 +1553,24 @@ void drawUI() {
   drawMoveText(P2.mainWeapon, 320 + 20, 140);
   if(P2.isDualWielding) {
     drawMoveText(P2.secondWeapon, 320 + 20+160, 140);
+  }
+}
+
+void drawDamage() {
+  P1DamageTime--;
+  P2DamageTime--;
+  if(P1DamageTime < 0) P1DamageTime = 0;
+  if(P2DamageTime < 0) P2DamageTime = 0;
+  
+  
+  textSize(20);
+  if(P1DamageTaken != 0) {
+    fill(138, 34, 0, 255*P1DamageTime/damageDecayTime);
+    text("-"+P1DamageTaken, 94+15, 50);
+  }
+  if(P2DamageTaken != 0) {
+    fill(138, 34, 0, 255*P2DamageTime/damageDecayTime);
+    text("-"+P2DamageTaken, 320 + 94+15, 50);
   }
 }
 
