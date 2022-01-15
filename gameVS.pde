@@ -29,7 +29,7 @@ import org.gamecontrolplus.gui.*;
 **/
 
 
-boolean keyboardInstead = true;
+boolean keyboardInstead = false;
 float scaleFactor =  1.2;
 int damageDecayTime = 200;
 boolean fastWeaponSwap = false;
