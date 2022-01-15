@@ -2,6 +2,25 @@ import net.java.games.input.*;
 import org.gamecontrolplus.*;
 import org.gamecontrolplus.gui.*;
 
+/** TODO
+ *  Version 3:
+ *    Implement Shield
+ *    Implement Dual Wield
+ *  Version 4:
+ *    Character Graphics
+**/
+
+/** Version 2 Changes:
+ *    Keyboard Control added with keyboardInstead variable
+ *    Added support for charge
+ *      revolver, rapier, bow
+ *    Added support for charge absorb
+ *      dagger, ax
+**/
+
+
+boolean keyboardInstead = true;
+
 void settings() {
   //System.setProperty("jogl.disable.openglcore", "false");
   //size(400, 400, P3D);
@@ -23,6 +42,7 @@ class Weapon {
   public boolean isDualWield;
   public boolean isWithShield;
   public int move;
+  public int absorb;
   public Weapon(Attack lightAttack, Attack heavyAttack, Attack lightDefend, Attack heavyDefend) {
     this.lightAttack = lightAttack;
     this.heavyAttack = heavyAttack;
@@ -36,6 +56,7 @@ class Weapon {
     isDualWield = false;
     isWithShield = false;
     move = -1;
+    absorb = 0;;
   }
   public Attack doAttack(int attackNumber, boolean isFeint) {
     if(duration != 0 && !this.isFeint) {
@@ -59,10 +80,11 @@ class Weapon {
       default:
         return null;
     }
-    if(charge + currentAttack.charge < 0) {
-      currentAttack = null;
+    if(charge + currentAttack.charge < 0) { 
+      move = -1;
       return null;
     }
+    absorb = 0;
     this.isFeint = isFeint;
     duration = currentAttack.duration;
     if(isFeint) {
@@ -70,12 +92,21 @@ class Weapon {
       if(fakeCharge > 6) {
         fakeCharge = 6;
       }
+      if(currentAttack.absorbCharge) {
+        absorb = fakeCharge;
+        fakeCharge = 0;
+      }
     } else {
       charge = charge + currentAttack.charge;
       if(charge > 6) {
         charge = 6;
       }
+      if(currentAttack.absorbCharge) {
+        absorb = charge;
+        charge = 0;
+      }
       fakeCharge = charge;
+      
     }
     return currentAttack;
   }
@@ -86,6 +117,7 @@ class Weapon {
     duration--;
     if(duration == 0) {
       move = -1;
+      fakeCharge = charge;
       return true; 
     }
     return false;
@@ -130,9 +162,13 @@ class Player {
     fakeTempHealth = tempHealth;
     if(returnAttack.damage < 0) {
       if(isFeint) {
-         fakeTempHealth = - returnAttack.damage;
+        fakeTempHealth = - returnAttack.damage;
+        fakeTempHealth += mainWeapon.absorb;
+        //mainWeapon.absorb = 0;
       } else {
         tempHealth = -returnAttack.damage;
+        tempHealth += mainWeapon.absorb;
+        //mainWeapon.absorb = 0;
         fakeTempHealth = tempHealth;
       }
     }
@@ -172,7 +208,7 @@ class Player {
   }
   public int getDamage() {
     if(mainWeapon.currentAttack.damage > 0 && !(mainWeapon.isFeint) ) {
-      return mainWeapon.currentAttack.damage;
+      return mainWeapon.currentAttack.damage + mainWeapon.absorb;
     }
     return 0;
   }
@@ -180,23 +216,70 @@ class Player {
 class Controller {
   ControlDevice device;
   
-  ControlButton Up;
-  ControlButton Down;
-  ControlButton Left;
-  ControlButton Right;
+  Button Up;
+  Button Down;
+  Button Left;
+  Button Right;
   
-  ControlButton LB;
-  ControlButton RB;
+  Button LB;
+  Button RB;
   public Controller(int id) {
-    device = control.getDevice(id);
-    Down = device.getButton("A");
-    Right = device.getButton("B");
-    Left = device.getButton("C");
-    Up = device.getButton("X");
-    LB = device.getButton("Y");
-    RB = device.getButton("Z");
+    if(keyboardInstead) {
+      device = null;
+      switch(id) {
+        case 0:
+          Down = new Button('f');
+          Right = new Button('d');
+          Left = new Button('s');
+          Up = new Button('a');
+          
+          LB = new Button('v');
+          RB = new Button('g');
+          break;
+        case 1:
+          Down = new Button('j');
+          Right = new Button('k');
+          Left = new Button('l');
+          Up = new Button(';');
+          
+          LB = new Button('m');
+          RB = new Button('h');
+          break;
+      }
+    } else {
+      device = control.getDevice(id);
+      Down = new Button(device.getButton("A"));
+      Right = new Button(device.getButton("B"));
+      Left = new Button(device.getButton("C"));
+      Up = new Button(device.getButton("X"));
+      LB = new Button(device.getButton("Y"));
+      RB = new Button(device.getButton("Z"));
+    }
   }
 }
+
+class Button {
+  ControlButton Cbutton;
+  char Kbutton;
+  public Button(char readChar) {
+    Kbutton = readChar;
+  }
+  public Button(ControlButton readButton) {
+    Cbutton = readButton;
+  }
+  
+  public boolean pressed() {
+    if(keyboardInstead) {
+      return keysHeld[Kbutton];
+    } else {
+      return Cbutton.pressed();
+    }
+  }
+  
+}
+
+boolean[] keysHeld = new boolean[255];
+
 
 Player P1;
 Player P2;
@@ -208,6 +291,13 @@ int waitVal;
 
 
 
+
+void keyPressed() {
+  keysHeld[key] = true;
+}
+void keyReleased() {
+  keysHeld[key] = false;
+}
 ControlIO control;
 
 Controller P1Controller;
@@ -220,7 +310,41 @@ public Weapon sword() {
   Attack heavyDefend = new Attack(-3,3,0,false);
   return new Weapon(lightAttack,heavyAttack,lightDefend,heavyDefend);
 }
-
+public Weapon revolver() {
+  Attack lightAttack = new Attack(0,1,1,false);
+  Attack heavyAttack = new Attack(2,1,-1,false);
+  Attack lightDefend = new Attack(-1,1,0,false);
+  Attack heavyDefend = new Attack(-2,1,-1,false);
+  return new Weapon(lightAttack,heavyAttack,lightDefend,heavyDefend);
+}
+public Weapon rapier() {
+  Attack lightAttack = new Attack(1,2,1,false);
+  Attack heavyAttack = new Attack(3,2,-1,false);
+  Attack lightDefend = new Attack(-1,2,1,false);
+  Attack heavyDefend = new Attack(-3,2,-1,false);
+  return new Weapon(lightAttack,heavyAttack,lightDefend,heavyDefend);
+}
+public Weapon dagger() {
+  Attack lightAttack = new Attack(1,1,1,false);
+  Attack heavyAttack = new Attack(1,2,0,true);
+  Attack lightDefend = new Attack(-1,1,0,false);
+  Attack heavyDefend = new Attack(-2,2,0,false);
+  return new Weapon(lightAttack,heavyAttack,lightDefend,heavyDefend);
+}
+public Weapon ax() {
+  Attack lightAttack = new Attack(3,3,1,false);
+  Attack heavyAttack = new Attack(2,3,0,true);
+  Attack lightDefend = new Attack(-3,3,0,false);
+  Attack heavyDefend = new Attack(-3,3,0,true);
+  return new Weapon(lightAttack,heavyAttack,lightDefend,heavyDefend);
+}
+public Weapon bow() {
+  Attack lightAttack = new Attack(0,2,1,false);
+  Attack heavyAttack = new Attack(4,3,-1,false);
+  Attack lightDefend = new Attack(-2,1,0,false);
+  Attack heavyDefend = new Attack(-4,3,-1,false);
+  return new Weapon(lightAttack,heavyAttack,lightDefend,heavyDefend);
+}
 
 void setup() {
   control = ControlIO.getInstance(this);
@@ -234,8 +358,8 @@ void setup() {
 
 void rebuildGame() {
   waitVal = 60;
-  P1 = new Player(1, sword());
-  P2 = new Player(1, sword());
+  P1 = new Player(1, dagger());
+  P2 = new Player(1, bow());
   P1Move = 0;
   P2Move = 0;
 }
@@ -263,9 +387,10 @@ void draw() {
 void inputHandler() {
 
   if(waitVal == 0) {
-    int temp = Cinput(P1Controller);
+    int temp = -1;
+      temp = Cinput(P1Controller);
     if(temp != 0) P1Move = temp;
-    temp = Cinput(P2Controller);
+      temp = Cinput(P2Controller);
     if(temp != 0) P2Move = temp;
   }
   if(P1Move != 0 && P2Move != 0) {
@@ -301,6 +426,7 @@ void inputHandler() {
     
   }
 }
+
 boolean winCheck() {
   fill(0);
   textSize(75);
@@ -355,6 +481,7 @@ int Cinput(Controller thisController) {
   return 0;
 }
 
+
 void drawGround() {
   noStroke();
   fill(#edc49a);
@@ -394,15 +521,18 @@ void drawUI() {
   text(""+P2.defence, 320 + 140 + 89, 50);
   text(""+P1.fakeTempHealth, 140 + 126, 50);
   text(""+P2.fakeTempHealth, 320 + 140 + 126, 50);
-  text("Charge 1: 0", 20, 80);
+  text("Charge 1:", 20, 80);
+  text(""+P1.mainWeapon.fakeCharge, 20+101, 80);
   text("Charge 2: 0", 170, 80);
-  text("Charge 1: 0", 320 + 20, 80);
+  text("Charge 1:", 320 + 20, 80);
+  text(""+P2.mainWeapon.fakeCharge, 320+20+101, 80);
   text("Charge 2: 0", 320 + 170, 80);
   drawCharge(P1.mainWeapon,       10, 100);
   drawCharge(P2.mainWeapon, 320 + 10, 100);
   drawMoveText(P1.mainWeapon, 20, 140);
   drawMoveText(P2.mainWeapon, 320 + 20, 140);
 }
+
 void drawMoveText(Weapon thisWeapon, int xOff, int yOff) {
   stroke(0);
   fill(0);
@@ -424,11 +554,11 @@ void drawMoveText(Weapon thisWeapon, int xOff, int yOff) {
   if(move != -1) {
     if(thisWeapon.currentAttack.damage > 0) {
       text("DMG:", xOff+10, yOff+25);
-      text("" + thisWeapon.currentAttack.damage, xOff+69, yOff+25);
+      text("" + (thisWeapon.currentAttack.damage+thisWeapon.absorb), xOff+69, yOff+25);
     }
     if(thisWeapon.currentAttack.damage < 0) {
       text("DEF:", xOff+10, yOff+25);
-      text("" + -thisWeapon.currentAttack.damage, xOff+59, yOff+25);
+      text("" + (-thisWeapon.currentAttack.damage+thisWeapon.absorb), xOff+59, yOff+25);
     }
     
   }
