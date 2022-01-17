@@ -30,7 +30,7 @@ import org.gamecontrolplus.gui.*;
 
 
 boolean keyboardInstead = false;
-float scaleFactor =  1.2;
+float scaleFactor =  1.8;
 int damageDecayTime = 200;
 boolean fastWeaponSwap = false;
 
@@ -466,6 +466,7 @@ class Button {
       prevVal2 = prevVal;
       prevVal =  keysHeld[Kbutton];
     } else {
+      prevVal2 = prevVal;
       prevVal = Cbutton.pressed();
     }
   }
@@ -1502,7 +1503,7 @@ void drawUI() {
     text(P1.mainWeapon.name, 125, 20);
   }
   
-  if(P1.isDualWielding) {
+  if(P2.isDualWielding) {
     text(P2.mainWeapon.name + " + " + P2.secondWeapon.name, 125+320, 20);
   } else if(P2.mainWeapon.isWithShield) {
     text(P2.mainWeapon.name + " + " + "Shield", 125+320, 20);
