@@ -36,7 +36,15 @@ Any weapon can be used with any other weapon. The second weapon, however, will h
 
 Additionally, all moves with either weapon will have 2/3 effect (damage or defense). If you can time the moves to be at the same time, you will do more damage or defense (x4/3) than would occur with a single weapon.
 
+Damage blocked by armor is doubled when attacking simultaniously.
+
 Dual Wield damage rounds up.
+
+### Armor
+
+Light: +1 Defense
+
+Heavy: +2 Defense, +1 Duration to all moves
 
 ### Moves
 There are 5 basic moves:
