@@ -29,7 +29,7 @@ import org.gamecontrolplus.gui.*;
 **/
 
 
-boolean keyboardInstead = false;
+boolean keyboardInstead = true;
 float scaleFactor =  1.8;
 int damageDecayTime = 200;
 boolean fastWeaponSwap = false;
@@ -291,7 +291,7 @@ class Player {
       fakeTempHealth = fakeTempHealth1 - THPdamage;
     } 
   }
-  public void handleDamage(int damage) {
+  public void handleDamage(int damage, boolean isDouble) {
     if(isDualWielding) {
       tempHealth = (2*tempHealth1 + 2*tempHealth2 + 2) / 3 - THPdamage;
       fakeTempHealth = (2*fakeTempHealth1 + 2*fakeTempHealth2 + 2) / 3 - THPdamage;
@@ -300,7 +300,12 @@ class Player {
       fakeTempHealth = fakeTempHealth1 - THPdamage;
     } 
     int blockDamage = damage - tempHealth;
-    int armorDamage = damage - defence;
+    int armorDamage;
+    if(isDouble) {
+      armorDamage = damage - defence - defence; 
+    } else {
+      armorDamage = damage - defence;
+    }
     if(armorDamage < 0) {
       armorDamage = 0;
     }
@@ -1391,11 +1396,11 @@ void inputHandler() {
     P2DamageTaken = 0;
     if(P1Attack) {
       P2DamageTaken = P1.getDamage();
-      P2.handleDamage(P1.getDamage());
+      P2.handleDamage(P1.getDamage(), P1.isDualWielding && P1.mainWeapon.attackNow && P1.secondWeapon.attackNow);
     }
     if(P2Attack) {
       P1DamageTaken = P2.getDamage();
-      P1.handleDamage(P2.getDamage());
+      P1.handleDamage(P2.getDamage(), P2.isDualWielding && P2.mainWeapon.attackNow && P2.secondWeapon.attackNow);
     }
     P1.earlyTick();
     P2.earlyTick();
